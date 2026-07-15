@@ -254,7 +254,7 @@ export function fallbackPdfExtract(text: string) {
       Number(a.replace(/,/g, ""))
     );
     if (dm && amounts.length >= 1) {
-      let desc = line
+      const desc = line
         .replace(dm[0], " ")
         .replace(/-?[\d,]+\.\d{2}/g, " ")
         .replace(/\s+/g, " ")
