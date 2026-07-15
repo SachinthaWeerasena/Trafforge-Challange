@@ -8,5 +8,13 @@ services:
     ports:
       - "3000:3000"
     env_file:
+      - .env
       - .env.local
+    environment:
+      DATABASE_URL: file:/app/data/dev.db
+    volumes:
+      - db-data:/app/data
     restart: unless-stopped
+
+volumes:
+  db-data:
