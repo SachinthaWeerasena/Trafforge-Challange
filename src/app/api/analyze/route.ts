@@ -23,6 +23,20 @@ import type { RawTransaction } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -44,12 +58,33 @@ export async function POST(req: NextRequest) {
     let currencySource = "default";
     const aiMeta = createAiMeta();
 
-    if (name.endsWith(".csv") || file.type === "text/csv") {
-      sourceText = buffer.toString("utf-8");
-      const parsed = parseCsvStatement(sourceText);
-      raw = parsed.transactions;
-      currency = parsed.currency;
-      currencySource = parsed.currencySource;
+    const isCsv =
+      name.endsWith(".csv") ||
+      file.type === "text/csv" ||
+      file.type === "application/csv" ||
+      file.type === "application/vnd.ms-excel" ||
+      (file.type === "application/octet-stream" && name.endsWith(".csv")) ||
+      (file.type === "text/plain" && name.endsWith(".csv"));
+
+    if (isCsv) {
+      sourceText = buffer.toString("utf-8").replace(/^\uFEFF/, "");
+      try {
+        const parsed = parseCsvStatement(sourceText);
+        raw = parsed.transactions;
+        currency = parsed.currency;
+        currencySource = parsed.currencySource;
+      } catch (csvErr) {
+        return NextResponse.json(
+          {
+            error:
+              csvErr instanceof Error
+                ? csvErr.message
+                : "Could not parse CSV statement.",
+            code: "CSV_PARSE_FAILED",
+          },
+          { status: 422 }
+        );
+      }
     } else if (name.endsWith(".pdf") || file.type === "application/pdf") {
       let pageCount = 0;
       try {
@@ -116,18 +151,28 @@ export async function POST(req: NextRequest) {
     }
 
     let transactions = enrichTransactions(raw);
+    const isCsvUpload =
+      name.endsWith(".csv") ||
+      file.type === "text/csv" ||
+      file.type === "application/csv";
 
     if (isAiConfigured()) {
-      const aiMap = await aiCategorizeTransactions(
-        transactions.map((t) => ({
-          date: t.date,
-          description: t.description,
-          category: t.category,
-          categoryConfidence: t.categoryConfidence,
-        })),
-        aiMeta
+      // Don't let slow AI providers hang CSV/PDF analysis forever
+      const aiMap = await withTimeout(
+        aiCategorizeTransactions(
+          transactions.map((t) => ({
+            date: t.date,
+            description: t.description,
+            category: t.category,
+            categoryConfidence: t.categoryConfidence,
+          })),
+          aiMeta
+        ),
+        isCsvUpload ? 12000 : 20000
       );
-      transactions = enrichTransactions(raw, aiMap);
+      if (aiMap && aiMap.size > 0) {
+        transactions = enrichTransactions(raw, aiMap);
+      }
     }
 
     const accountSource = [
@@ -141,7 +186,7 @@ export async function POST(req: NextRequest) {
       transactions,
       accountMask,
       "",
-      aiMeta.used || isAiConfigured(),
+      aiMeta.used,
       currency,
       currencySource
     );
@@ -169,7 +214,7 @@ export async function POST(req: NextRequest) {
     };
 
     const aiSummary = isAiConfigured()
-      ? await generateAiSummary(summaryContext, aiMeta)
+      ? await withTimeout(generateAiSummary(summaryContext, aiMeta), 12000)
       : null;
     const naturalLanguageSummary =
       aiSummary ?? buildDeterministicSummary(analysis);
@@ -178,27 +223,30 @@ export async function POST(req: NextRequest) {
     let aiAnomalyInsight = "";
 
     if (isAiConfigured()) {
-      const coach = await generateAiCoachInsights(
-        {
-          currency: analysis.currency,
-          totalIncome: analysis.totalIncome,
-          totalExpenses: analysis.totalExpenses,
-          savingsRate: analysis.savingsRate,
-          topCategories: summaryContext.topCategories,
-          recurring: analysis.recurringPayments.map((r) => ({
-            merchant: r.merchant,
-            averageAmount: r.averageAmount,
-            occurrences: r.occurrences,
-          })),
-          bonus: {
-            duplicateCount: analysis.bonus.duplicateCharges.length,
-            feeCount: analysis.bonus.hiddenFees.length,
-            cashPct: analysis.bonus.cashHeavy.cashPctOfExpenses,
-            salaryNote: analysis.bonus.salaryConsistency.note,
-            ruleSuggestions: analysis.bonus.savingSuggestions,
+      const coach = await withTimeout(
+        generateAiCoachInsights(
+          {
+            currency: analysis.currency,
+            totalIncome: analysis.totalIncome,
+            totalExpenses: analysis.totalExpenses,
+            savingsRate: analysis.savingsRate,
+            topCategories: summaryContext.topCategories,
+            recurring: analysis.recurringPayments.map((r) => ({
+              merchant: r.merchant,
+              averageAmount: r.averageAmount,
+              occurrences: r.occurrences,
+            })),
+            bonus: {
+              duplicateCount: analysis.bonus.duplicateCharges.length,
+              feeCount: analysis.bonus.hiddenFees.length,
+              cashPct: analysis.bonus.cashHeavy.cashPctOfExpenses,
+              salaryNote: analysis.bonus.salaryConsistency.note,
+              ruleSuggestions: analysis.bonus.savingSuggestions,
+            },
           },
-        },
-        aiMeta
+          aiMeta
+        ),
+        12000
       );
       if (coach) {
         aiCoachTips = coach.tips;
