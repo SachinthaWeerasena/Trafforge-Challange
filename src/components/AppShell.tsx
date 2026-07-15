@@ -46,15 +46,6 @@ export function AppShell({
           />
         </Link>
 
-        <label className="sidebar-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
-          </svg>
-          <input type="search" placeholder="Search" aria-label="Search" />
-          <kbd>⌘K</kbd>
-        </label>
-
         <nav className="sidebar-nav">
           <p className="sidebar-group">Main menu</p>
           <Link

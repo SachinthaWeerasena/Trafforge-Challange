@@ -55,20 +55,6 @@ export default function Home() {
     <AppShell
       crumbs={[analysis ? "Dashboard" : "Upload"]}
       onOpenFinn={openFinn}
-      headerAction={
-        analysis ? (
-          <button type="button" className="btn-share" onClick={openFinn}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-              <path
-                d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Ask Finn
-          </button>
-        ) : null
-      }
     >
       {!analysis ? (
         <div className="upload-view">
