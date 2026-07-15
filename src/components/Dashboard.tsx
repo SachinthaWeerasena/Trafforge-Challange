@@ -21,6 +21,33 @@ interface Props {
   onReset: () => void;
 }
 
+/** YYYY-MM → "May 2026" (never truncate to "202"). */
+function formatMonthLabel(monthKey: string): string {
+  const m = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, 1);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString("en-US", { month: "short", year: "numeric" });
+    }
+  }
+  return monthKey;
+}
+
+/** Compact, readable Y-axis ticks for large LKR amounts. */
+function formatAxisAmount(n: number): string {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1_000_000) {
+    const v = abs / 1_000_000;
+    return `${sign}${v >= 10 ? v.toFixed(0) : v.toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    const v = abs / 1_000;
+    return `${sign}${v >= 100 ? v.toFixed(0) : v.toFixed(1)}K`;
+  }
+  return `${sign}${Math.round(abs)}`;
+}
+
 /** Derive a readable bank label from the uploaded file name. */
 function bankNameFromFile(fileName: string): string {
   const base = fileName
@@ -45,16 +72,47 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
   const savingsBadge = `${analysis.savingsRate >= 0 ? "+" : ""}${analysis.savingsRate.toFixed(1)}%`;
 
   const cashData = useMemo(() => {
-    const rows = analysis.cashFlow.map((m, i, arr) => ({
-      month: m.month.slice(0, 3),
+    if (cashMode === "yearly") {
+      const byYear = new Map<
+        string,
+        { net: number; inflow: number; outflow: number }
+      >();
+      for (const m of analysis.cashFlow) {
+        const year = m.month.slice(0, 4) || m.month;
+        const prev = byYear.get(year) ?? { net: 0, inflow: 0, outflow: 0 };
+        byYear.set(year, {
+          net: prev.net + m.net,
+          inflow: prev.inflow + m.inflows,
+          outflow: prev.outflow + m.outflows,
+        });
+      }
+      const years = [...byYear.entries()];
+      return years.map(([year, v], i) => ({
+        label: year,
+        full: year,
+        value: Math.round(v.net),
+        inflow: Math.round(v.inflow),
+        outflow: Math.round(v.outflow),
+        highlight: i === years.length - 1,
+      }));
+    }
+
+    return analysis.cashFlow.map((m, i, arr) => ({
+      label: formatMonthLabel(m.month),
       full: m.month,
-      value: Math.round(cashMode === "monthly" ? m.net : m.inflows),
+      value: Math.round(m.net),
       inflow: Math.round(m.inflows),
       outflow: Math.round(m.outflows),
       highlight: i === arr.length - 1,
     }));
-    return rows;
   }, [analysis.cashFlow, cashMode]);
+
+  const yTickWidth = useMemo(() => {
+    const peak = Math.max(1, ...cashData.map((d) => Math.abs(d.value)));
+    if (peak >= 1_000_000) return 72;
+    if (peak >= 100_000) return 64;
+    return 56;
+  }, [cashData]);
 
   const filteredTxns = useMemo(() => {
     const q = txnQuery.trim().toLowerCase();
@@ -182,7 +240,7 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
           <header className="panel-card-head">
             <div>
               <h2>Cash flow</h2>
-              <p>{cashMode === "monthly" ? "Net by month" : "Inflows by month"}</p>
+              <p>{cashMode === "monthly" ? "Net by month" : "Net by year"}</p>
             </div>
             <div className="seg-toggle" role="group" aria-label="Cash flow period">
               <button
@@ -201,12 +259,41 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
               </button>
             </div>
           </header>
-          <div className="chart-box tall">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={cashData} barCategoryGap="28%">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(157,181,177,0.2)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9DB5B1" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "#9DB5B1" }} width={48} axisLine={false} tickLine={false} />
+          <div className="chart-box tall cashflow-chart">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={cashData}
+                barCategoryGap="28%"
+                margin={{ top: 16, right: 16, left: 8, bottom: 12 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(157,181,177,0.25)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="label"
+                  interval={0}
+                  tick={{ fontSize: 12, fill: "#6B7280", fontWeight: 600 }}
+                  tickMargin={10}
+                  height={40}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  width={yTickWidth}
+                  tick={{ fontSize: 12, fill: "#6B7280", fontWeight: 500 }}
+                  tickFormatter={formatAxisAmount}
+                  tickMargin={8}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={[
+                    (dataMin: number) =>
+                      dataMin < 0 ? Math.floor(dataMin * 1.08) : 0,
+                    (dataMax: number) =>
+                      dataMax > 0 ? Math.ceil(dataMax * 1.08) : 0,
+                  ]}
+                />
                 <Tooltip
                   cursor={{ fill: "rgba(13,131,119,0.06)" }}
                   content={({ active, payload }) => {
@@ -214,24 +301,34 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
                     const d = payload[0].payload as (typeof cashData)[0];
                     return (
                       <div className="chart-tooltip">
-                        <p>{d.full}</p>
+                        <p>{d.label}</p>
                         <p>
-                          <span>Cashflow</span>
+                          <span>Net</span>
                           <strong className="mono-num">{money(d.value)}</strong>
                         </p>
                         <p>
                           <span>Inflow</span>
                           <strong className="mono-num">{money(d.inflow)}</strong>
                         </p>
+                        <p>
+                          <span>Outflow</span>
+                          <strong className="mono-num">{money(d.outflow)}</strong>
+                        </p>
                       </div>
                     );
                   }}
                 />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56}>
                   {cashData.map((d) => (
                     <Cell
                       key={d.full}
-                      fill={d.highlight ? "url(#barFill)" : "#D5E3E0"}
+                      fill={
+                        d.value < 0
+                          ? "#94A3B8"
+                          : d.highlight
+                            ? "url(#barFill)"
+                            : "#14B8A6"
+                      }
                     />
                   ))}
                 </Bar>

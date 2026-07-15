@@ -2947,7 +2947,16 @@ body:has(.app-frame) {
 }
 
 .chart-box.tall {
-  min-height: 260px;
+  min-height: 300px;
+}
+
+.cashflow-chart {
+  overflow: visible;
+  padding: 0.25rem 0.15rem 0;
+}
+
+.cashflow-chart .recharts-cartesian-axis-tick text {
+  font-family: var(--font-manrope-stack);
 }
 
 .chart-tooltip {

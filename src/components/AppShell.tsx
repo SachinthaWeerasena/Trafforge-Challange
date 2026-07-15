@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 
@@ -20,8 +21,10 @@ export function AppShell({
   onOpenFinn,
 }: Props) {
   const pathname = usePathname();
+  const { mode } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
   const isHistory = pathname?.startsWith("/history");
+  const showHistory = mode === "authenticated";
 
   return (
     <div className={`app-frame ${navOpen ? "nav-open" : ""}`}>
@@ -60,15 +63,17 @@ export function AppShell({
             <IconList />
             Transactions
           </a>
-          <Link
-            href="/history"
-            className={`sidebar-link ${isHistory ? "active" : ""}`}
-            onClick={() => setNavOpen(false)}
-          >
-            <IconFolder />
-            History
-            <span className="sidebar-badge">Saved</span>
-          </Link>
+          {showHistory && (
+            <Link
+              href="/history"
+              className={`sidebar-link ${isHistory ? "active" : ""}`}
+              onClick={() => setNavOpen(false)}
+            >
+              <IconFolder />
+              History
+              <span className="sidebar-badge">Saved</span>
+            </Link>
+          )}
 
           <p className="sidebar-group">Features</p>
           <button
