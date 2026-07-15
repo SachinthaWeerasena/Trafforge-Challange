@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionUserFromRequest } from "@/lib/auth";
 import { parseCsvStatement } from "@/lib/csv-parser";
 import { detectCurrency } from "@/lib/currency";
+import { prisma } from "@/lib/db";
 import {
   buildDeterministicSummary,
   computeInsights,
@@ -218,6 +220,35 @@ export async function POST(req: NextRequest) {
       },
     };
 
+    const sessionUser = await getSessionUserFromRequest(req);
+    let savedStatementId: string | null = null;
+    let stored = false;
+    let privacyNote =
+      "Guest mode: raw statement processed in memory only — nothing saved to the database.";
+
+    // Authenticated → persist processed results (not raw file bytes) linked to user_id
+    // Guest → never write statement history
+    if (sessionUser) {
+      const row = await prisma.statement.create({
+        data: {
+          userId: sessionUser.id,
+          fileName: file.name,
+          fileType: file.type || (name.endsWith(".pdf") ? "application/pdf" : "text/csv"),
+          currency: analysis.currency,
+          transactionCount: transactions.length,
+          processedData: JSON.stringify(analysis),
+        },
+        select: { id: true },
+      });
+      savedStatementId = row.id;
+      stored = true;
+      privacyNote =
+        "Signed-in mode: processed insights were saved to your account history. Raw file bytes were not stored.";
+    } else if (optInStore) {
+      privacyNote =
+        "Guest mode ignores store opt-in — sign in to keep statement history.";
+    }
+
     return NextResponse.json({
       analysis,
       meta: {
@@ -225,16 +256,17 @@ export async function POST(req: NextRequest) {
         transactionCount: transactions.length,
         currency: analysis.currency,
         currencySource: analysis.currencySource,
+        mode: sessionUser ? "authenticated" : "guest",
         optInStore,
-        stored: false,
+        stored,
+        statementId: savedStatementId,
         ai: {
           configured: isAiConfigured(),
           used: aiMeta.used,
           provider: aiMeta.provider,
           features: aiMeta.features,
         },
-        privacyNote:
-          "Raw statement is processed in-memory for this request only and is not saved to disk or a database.",
+        privacyNote,
       },
     });
   } catch (err) {

@@ -1437,6 +1437,341 @@ th {
   }
 }
 
+/* ——— Auth & history ——— */
+.user-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.user-menu .file-btn.user-signup {
+  margin-top: 0;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.85rem;
+  border-radius: 11px;
+}
+
+.user-menu .ghost-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.link-btn {
+  text-decoration: none;
+  color: inherit;
+}
+
+.brand-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(8, 18, 16, 0.58);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  animation: fade-in 0.2s var(--ease);
+}
+
+body.auth-modal-open .chat-fab-root {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-modal {
+  width: min(420px, 100%);
+  max-height: min(92vh, 640px);
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid rgba(15, 55, 48, 0.1);
+  border-radius: 22px;
+  padding: 1.35rem 1.35rem 1.15rem;
+  box-shadow: 0 28px 70px rgba(8, 18, 16, 0.28);
+  animation: auth-pop 0.28s var(--ease);
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes auth-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.auth-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.15rem;
+}
+
+.auth-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+
+.auth-modal-head h2 {
+  margin: 0;
+  font-family: var(--font-display), "Fraunces", Georgia, serif;
+  font-size: 1.55rem;
+  letter-spacing: -0.025em;
+}
+
+.auth-modal-head p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.auth-close {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #f4f8f6;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-close:hover:not(:disabled) {
+  background: #ecfdf5;
+  border-color: #99f6e4;
+}
+
+.auth-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.auth-form input {
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  font-weight: 400;
+  background: #f8fbfa;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.auth-submit {
+  margin-top: 0.2rem;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(180deg, #14b8a6, var(--teal-deep));
+  transition: transform 0.2s var(--ease), filter 0.2s;
+}
+
+.auth-submit:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-footer {
+  margin-top: 1rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-switch {
+  margin: 0;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.auth-switch button {
+  border: 0;
+  background: none;
+  color: var(--teal-deep);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-guest-btn {
+  border: 1px solid var(--line-strong);
+  background: #f8fbfa;
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  font-weight: 650;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-guest-btn:hover:not(:disabled) {
+  background: white;
+  border-color: var(--teal);
+}
+
+.auth-guest-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-guest-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.auth-persist-note {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+  border-radius: 12px;
+  color: var(--teal-ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.save-toast {
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #99f6e4;
+  color: var(--teal-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: rise 0.35s var(--ease);
+}
+
+.history-page {
+  max-width: 760px;
+  animation: rise 0.45s var(--ease);
+}
+
+.history-head h1 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display), "Fraunces", Georgia, serif;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  letter-spacing: -0.03em;
+}
+
+.history-head p {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.history-item strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.history-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.history-actions .file-btn {
+  margin-top: 0;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.history-locked,
+.history-empty {
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+
+.history-locked h2 {
+  margin-top: 0;
+}
+
+.history-locked .file-btn,
+.history-empty .file-btn,
+.link-as-btn {
+  margin-top: 1rem;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.history-foot-note {
+  margin-top: 1.25rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1482,5 +1817,10 @@ th {
   .chat-popup {
     width: min(100vw - 1.2rem, 400px);
     height: min(70vh, 560px);
+  }
+
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

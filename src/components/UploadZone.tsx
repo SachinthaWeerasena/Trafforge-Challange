@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useAuth } from "./AuthProvider";
 
 interface Props {
   onAnalyzed: (payload: {
     analysis: import("@/lib/types").AnalysisResult;
     fileName: string;
+    meta?: { stored?: boolean; mode?: string; statementId?: string | null };
   }) => void;
   busy: boolean;
   setBusy: (v: boolean) => void;
@@ -18,6 +20,7 @@ function isPdfFile(file: File) {
 }
 
 export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
+  const { mode } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [needsPassword, setNeedsPassword] = useState(false);
   const [password, setPassword] = useState("");
@@ -51,7 +54,15 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
         setNeedsPassword(false);
         setPassword("");
         setSelectedFile(null);
-        onAnalyzed({ analysis: data.analysis, fileName: file.name });
+        onAnalyzed({
+          analysis: data.analysis,
+          fileName: file.name,
+          meta: {
+            stored: Boolean(data.meta?.stored),
+            mode: data.meta?.mode,
+            statementId: data.meta?.statementId ?? null,
+          },
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Upload failed");
       } finally {
@@ -193,17 +204,24 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
         </div>
       )}
 
-      <label className="opt-in">
-        <input
-          type="checkbox"
-          checked={optInStore}
-          onChange={(e) => setOptInStore(e.target.checked)}
-        />
-        <span>
-          Opt-in to store the raw statement later. Today we still process in memory only
-          and never save the file.
-        </span>
-      </label>
+      {mode === "authenticated" ? (
+        <p className="opt-in auth-persist-note">
+          Signed in — processed insights will be saved to your history (raw file bytes
+          are not stored).
+        </p>
+      ) : (
+        <label className="opt-in">
+          <input
+            type="checkbox"
+            checked={optInStore}
+            onChange={(e) => setOptInStore(e.target.checked)}
+          />
+          <span>
+            Guest mode never saves history. Sign in to keep statements. (Opt-in alone
+            does not persist data.)
+          </span>
+        </label>
+      )}
 
       {error && (
         <p className="error-banner" role="alert">

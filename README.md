@@ -18,13 +18,16 @@ AI-powered personal banking statement analyzer — Trafforge internal hackathon.
 ```bash
 npm install
 cp .env.example .env.local
-# Add at least one FREE key (recommended):
-#   GROQ_API_KEY=...     https://console.groq.com/keys
-#   GEMINI_API_KEY=...   https://aistudio.google.com/apikey
+# Add GROQ_API_KEY / GEMINI_API_KEY
+# Ensure AUTH_SECRET and DATABASE_URL are set (also in .env for Prisma)
+npx prisma migrate dev
 npm run dev
 ```
 
-**Free AI used in-product for:** PDF extract · categorize · NL summary · coach tips · anomaly insight · chatbot (auto-failover Groq → Gemini → OpenRouter → Ollama → OpenAI).
+### Guest vs signed-in
+- **Guest:** upload & analyze with no account — results are **not** saved.
+- **Sign up / Sign in** (header): processed insights are saved to SQLite and listed under **History**.
+- Passwords are hashed with **bcrypt**; sessions use an HTTP-only JWT cookie.
 
 ## Documentation (submission)
 
