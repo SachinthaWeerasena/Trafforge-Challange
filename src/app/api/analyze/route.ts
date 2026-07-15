@@ -128,7 +128,12 @@ export async function POST(req: NextRequest) {
       transactions = enrichTransactions(raw, aiMap);
     }
 
-    const accountMask = extractAccountHint(sourceText + " " + (raw[0]?.reference ?? ""));
+    const accountSource = [
+      sourceText,
+      ...raw.map((t) => t.reference ?? ""),
+      ...raw.slice(0, 5).map((t) => t.description ?? ""),
+    ].join(" ");
+    const accountMask = extractAccountHint(accountSource);
 
     let analysis = computeInsights(
       transactions,

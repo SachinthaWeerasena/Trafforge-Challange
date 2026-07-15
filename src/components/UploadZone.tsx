@@ -113,7 +113,7 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
         </div>
         <p className="drop-title">
           {busy
-            ? "Reading your statement…"
+            ? "Finn is reading your statement…"
             : selectedFile
               ? selectedFile.name
               : "Drop PDF or CSV here"}
@@ -125,7 +125,7 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
               ? isPdfFile(selectedFile)
                 ? "PDF selected — enter a password if the file is locked, then analyze"
                 : "Ready to analyze"
-              : "Live ingest for demo — nothing is pre-loaded"}
+              : "No statement uploaded yet — drop a PDF or CSV to get started"}
         </p>
 
         {busy ? (

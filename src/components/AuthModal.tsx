@@ -100,7 +100,7 @@ export function AuthModal({ open, initialMode = "login", onClose }: Props) {
       else await signup(email, password);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "Sign-in failed — check email and password, then try again.");
     } finally {
       setBusy(false);
     }

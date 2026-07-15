@@ -19,21 +19,40 @@ export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
 };
 
 export const CATEGORY_COLORS: Record<TransactionCategory, string> = {
-  income: "#0f766e",
-  groceries: "#15803d",
-  utilities: "#0369a1",
-  transport: "#c2410c",
-  dining: "#be123c",
-  subscriptions: "#7c3aed",
-  loan_payments: "#4338ca",
-  fees: "#a16207",
-  transfers: "#475569",
-  cash_withdrawals: "#b45309",
-  shopping: "#db2777",
-  travel: "#0891b2",
-  healthcare: "#059669",
-  entertainment: "#9333ea",
-  other: "#64748b",
+  income: "var(--teal)",
+  groceries: "var(--text-secondary)",
+  utilities: "var(--text-secondary)",
+  transport: "var(--text-secondary)",
+  dining: "var(--text-secondary)",
+  subscriptions: "var(--text-secondary)",
+  loan_payments: "var(--text-secondary)",
+  fees: "var(--danger)",
+  transfers: "var(--text-secondary)",
+  cash_withdrawals: "var(--text-secondary)",
+  shopping: "var(--text-secondary)",
+  travel: "var(--text-secondary)",
+  healthcare: "var(--text-secondary)",
+  entertainment: "var(--text-secondary)",
+  other: "var(--text-secondary)",
+};
+
+/** Hex fallbacks for Recharts (CSS vars not supported in SVG fills) */
+export const CATEGORY_CHART_COLORS: Record<TransactionCategory, string> = {
+  income: "#14B8A6",
+  groceries: "#5EEAD4",
+  utilities: "#0D8377",
+  transport: "#9DB5B1",
+  dining: "#4B615D",
+  subscriptions: "#14B8A6",
+  loan_payments: "#0D8377",
+  fees: "#F87171",
+  transfers: "#9DB5B1",
+  cash_withdrawals: "#4B615D",
+  shopping: "#5EEAD4",
+  travel: "#0D8377",
+  healthcare: "#14B8A6",
+  entertainment: "#9DB5B1",
+  other: "#4B615D",
 };
 
 /** Keyword → category rules. Applied before AI for speed & offline demo reliability. */

@@ -17,7 +17,7 @@ const SUGGESTIONS = [
 const WELCOME: ChatMessage = {
   role: "assistant",
   content:
-    "Hi — I’m your statement assistant. Ask about spend, categories, fees, or savings. Try a quick question below.",
+    "Hi — I’m Finn. Ask me about your spend, categories, fees, or savings. Try a quick question below.",
 };
 
 export function Chatbot({ analysis }: Props) {
@@ -27,7 +27,6 @@ export function Chatbot({ analysis }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [provider, setProvider] = useState<string | null>(null);
   const [hasUnread, setHasUnread] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,10 +38,18 @@ export function Chatbot({ analysis }: Props) {
   useEffect(() => {
     if (!analysisKey) return;
     setMessages([WELCOME]);
-    setProvider(null);
     setHasUnread(true);
     setOpen(false);
   }, [analysisKey]);
+
+  useEffect(() => {
+    const openFromShell = () => {
+      setOpen(true);
+      setHasUnread(false);
+    };
+    window.addEventListener("finsight:open-finn", openFromShell);
+    return () => window.removeEventListener("finsight:open-finn", openFromShell);
+  }, []);
 
   useEffect(() => {
     const el = logRef.current;
@@ -109,7 +116,7 @@ export function Chatbot({ analysis }: Props) {
           {
             role: "assistant",
             content:
-              "Upload a bank statement first, then I can answer questions about your spend.",
+              "Upload a bank statement first — then I can decode your spend.",
           },
         ]);
         setInput("");
@@ -146,7 +153,6 @@ export function Chatbot({ analysis }: Props) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Chat failed");
-        if (data.provider) setProvider(data.provider);
         setMessages([
           ...nextHistory,
           { role: "assistant", content: data.answer },
@@ -183,6 +189,7 @@ export function Chatbot({ analysis }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={`${panelId}-status`}
         aria-hidden={!open}
         hidden={!open}
       >
@@ -202,14 +209,22 @@ export function Chatbot({ analysis }: Props) {
               </svg>
             </span>
             <div>
-              <h2 id={titleId}>Statement chat</h2>
-              <p className="chat-status">
-                <span className={`status-dot ${ready ? "online" : "idle"}`} aria-hidden />
-                {ready
-                  ? provider
-                    ? `Online · ${provider}`
-                    : "Online · ready for questions"
-                  : "Waiting for a statement upload"}
+              <h2 id={titleId}>Ask Finn</h2>
+              <p
+                className="chat-status"
+                id={`${panelId}-status`}
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className={`status-dot ${ready ? "online" : "idle"}`}
+                  aria-hidden="true"
+                />
+                <span className="chat-status-text">
+                  {ready
+                    ? "Status: Online — ready for questions"
+                    : "Status: Waiting — upload a statement first"}
+                </span>
               </p>
             </div>
           </div>
@@ -220,7 +235,7 @@ export function Chatbot({ analysis }: Props) {
               setOpen(false);
               launcherRef.current?.focus();
             }}
-            aria-label="Close chat"
+            aria-label="Close Ask Finn chat"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -233,10 +248,14 @@ export function Chatbot({ analysis }: Props) {
             <div key={`${i}-${m.role}`} className={`chat-bubble-row ${m.role}`}>
               {m.role === "assistant" && (
                 <span className="chat-mini-avatar" aria-hidden>
-                  SI
+                  F
                 </span>
               )}
-              <div className={`chat-bubble ${m.role}`}>
+              <div
+                className={`chat-bubble ${m.role}`}
+                role={m.role === "assistant" ? "article" : undefined}
+                aria-label={m.role === "assistant" ? "Message from Finn" : "Your message"}
+              >
                 <p>{m.content}</p>
               </div>
             </div>
@@ -244,9 +263,9 @@ export function Chatbot({ analysis }: Props) {
           {busy && (
             <div className="chat-bubble-row assistant">
               <span className="chat-mini-avatar" aria-hidden>
-                SI
+                F
               </span>
-              <div className="chat-bubble assistant typing" aria-label="Assistant is typing">
+              <div className="chat-bubble assistant typing" aria-label="Finn is typing">
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
@@ -286,7 +305,7 @@ export function Chatbot({ analysis }: Props) {
             id={`${panelId}-input`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={ready ? "Ask about your spending…" : "Upload a statement to chat…"}
+            placeholder={ready ? "Ask Finn about your spending…" : "Upload a statement first…"}
             disabled={busy}
             autoComplete="off"
           />
@@ -294,7 +313,7 @@ export function Chatbot({ analysis }: Props) {
             type="submit"
             className="chat-send"
             disabled={busy || !input.trim()}
-            aria-label="Send message"
+            aria-label="Send message to Finn"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M4 12l16-7-7 16-2.5-6.5L4 12z" strokeLinejoin="round" />
@@ -312,7 +331,7 @@ export function Chatbot({ analysis }: Props) {
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
-        aria-label={open ? "Close statement chat" : "Open statement chat"}
+        aria-label={open ? "Close Ask Finn" : "Open Ask Finn"}
       >
         <span className="chat-launcher-icon" aria-hidden>
           {open ? (
@@ -331,7 +350,7 @@ export function Chatbot({ analysis }: Props) {
           )}
         </span>
         {hasUnread && !open && (
-          <span className="chat-badge" aria-hidden>
+          <span className="chat-badge" aria-label="1 unread message from Finn">
             1
           </span>
         )}

@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AppShell } from "@/components/AppShell";
 import { UploadZone } from "@/components/UploadZone";
 import { Dashboard } from "@/components/Dashboard";
 import { Chatbot } from "@/components/Chatbot";
-import { UserMenu } from "@/components/UserMenu";
 import { useAuth } from "@/components/AuthProvider";
 import type { AnalysisResult } from "@/lib/types";
 
 interface AiStatus {
   primary: string | null;
   configured: Array<{ id: string; label: string; model: string; free: boolean }>;
+}
+
+function openFinn() {
+  window.dispatchEvent(new CustomEvent("finsight:open-finn"));
 }
 
 export default function Home() {
@@ -28,7 +32,6 @@ export default function Home() {
       .catch(() => setAiStatus(null));
   }, []);
 
-  // Restore a statement opened from History
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("si_restore");
@@ -40,7 +43,7 @@ export default function Home() {
       };
       setAnalysis(parsed.analysis);
       setFileName(parsed.fileName);
-      setSavedNotice("Restored from your saved history.");
+      setSavedNotice("Finn restored this statement from your history.");
     } catch {
       /* ignore */
     }
@@ -49,41 +52,41 @@ export default function Home() {
   const aiReady = Boolean(aiStatus?.configured?.length);
 
   return (
-    <main className="shell">
-      <div className="atmosphere" aria-hidden />
-
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo-mark">SI</span>
-          <div>
-            <p className="brand-name">StatementInsight</p>
-            <p className="brand-sub">
+    <AppShell
+      crumbs={[analysis ? "Dashboard" : "Upload"]}
+      onOpenFinn={openFinn}
+      headerAction={
+        analysis ? (
+          <button type="button" className="btn-share" onClick={openFinn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <path
+                d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Ask Finn
+          </button>
+        ) : null
+      }
+    >
+      {!analysis ? (
+        <div className="upload-view">
+          <div className="upload-intro">
+            <p className={`hero-kicker ${aiReady ? "" : "warn"}`}>
+              <span className="dot" aria-hidden />
+              {aiReady
+                ? "Finn ready · AI insights on"
+                : "Rules mode · add an AI key to wake Finn"}
+            </p>
+            <h1>Your money, decoded.</h1>
+            <p className="lede">
+              Upload a statement for categories, cash-flow, and answers from Finn
               {mode === "authenticated"
-                ? "Signed in · history enabled"
-                : "Guest · no long-term storage"}
+                ? " — saved to your account."
+                : " — guest mode keeps nothing after this session."}
             </p>
           </div>
-        </div>
-        <UserMenu />
-      </header>
-
-      {!analysis ? (
-        <div className="hero">
-          <p className={`hero-kicker ${aiReady ? "" : "warn"}`}>
-            <span className="dot" aria-hidden />
-            {aiReady
-              ? `AI ready · ${aiStatus!.configured.map((p) => p.id).join(" → ")}`
-              : "Rules mode · add a free AI key for full insights"}
-          </p>
-
-          <h1>StatementInsight</h1>
-          <p className="lede">
-            Upload a statement. Get categories, cash-flow, a plain-English summary, and
-            answers
-            {mode === "authenticated"
-              ? " — saved to your account history."
-              : " — without keeping your raw file (guest mode)."}
-          </p>
 
           <UploadZone
             busy={busy}
@@ -92,7 +95,7 @@ export default function Home() {
               setAnalysis(a);
               setFileName(f);
               if (meta?.stored) {
-                setSavedNotice("Saved to your account history.");
+                setSavedNotice("Saved to your Finsight history.");
               } else {
                 setSavedNotice(
                   mode === "guest"
@@ -104,7 +107,7 @@ export default function Home() {
           />
 
           <div className="sample-row">
-            <span>Try a synthetic sample:</span>
+            <span>Try a sample:</span>
             <a className="sample-link" href="/samples/sample-statement.csv" download>
               CSV
             </a>
@@ -112,6 +115,10 @@ export default function Home() {
               PDF
             </a>
           </div>
+
+          <p className="foot-inline">
+            Synthetic demo data only · never upload real customer statements
+          </p>
         </div>
       ) : (
         <>
@@ -128,11 +135,7 @@ export default function Home() {
         </>
       )}
 
-      <footer className="foot">
-        Synthetic demo data only · never upload real customer statements
-      </footer>
-
       <Chatbot analysis={analysis} />
-    </main>
+    </AppShell>
   );
 }

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { AuthModal } from "@/components/AuthModal";
-import { UserMenu } from "@/components/UserMenu";
 import type { AnalysisResult } from "@/lib/types";
 
 type StatementRow = {
@@ -82,29 +82,19 @@ export default function HistoryPage() {
   }
 
   return (
-    <main className="shell">
-      <div className="atmosphere" aria-hidden />
-      <header className="topbar">
-        <Link href="/" className="brand brand-link">
-          <span className="logo-mark">SI</span>
-          <div>
-            <p className="brand-name">StatementInsight</p>
-            <p className="brand-sub">Statement history</p>
-          </div>
-        </Link>
-        <UserMenu />
-      </header>
-
+    <AppShell crumbs={["History"]}>
       <section className="history-page">
-        <div className="history-head">
-          <h1>Your statements</h1>
-          <p>
-            Saved analyses for signed-in accounts only. Guest uploads are never stored.
-          </p>
+        <div className="dash-title-row">
+          <div>
+            <h1 className="dash-title">Your statements</h1>
+            <p className="dash-sub">
+              Saved analyses for signed-in accounts only. Guest uploads are never stored.
+            </p>
+          </div>
         </div>
 
         {mode !== "authenticated" && !loading && (
-          <div className="history-locked panel">
+          <div className="history-locked panel-card">
             <h2>Sign in required</h2>
             <p>Create an account or sign in to view and reopen past statements.</p>
             <button type="button" className="file-btn" onClick={() => setAuthOpen(true)}>
@@ -121,8 +111,9 @@ export default function HistoryPage() {
               </p>
             )}
             {rows.length === 0 && !error && (
-              <div className="history-empty panel">
-                <p>No saved statements yet.</p>
+              <div className="history-empty panel-card">
+                <p className="finn-label">Finn noticed</p>
+                <p>No statement uploaded yet — drop a PDF or CSV on the home page to get started.</p>
                 <Link href="/" className="file-btn link-as-btn">
                   Upload a statement
                 </Link>
@@ -130,12 +121,12 @@ export default function HistoryPage() {
             )}
             <ul className="history-list">
               {rows.map((row) => (
-                <li key={row.id} className="history-item panel">
+                <li key={row.id} className="history-item panel-card">
                   <div>
                     <strong>{row.fileName}</strong>
                     <p className="muted">
-                      {new Date(row.uploadDate).toLocaleString()} ·{" "}
-                      {row.transactionCount} txns
+                      {new Date(row.uploadDate).toLocaleString()} · {row.transactionCount}{" "}
+                      txns
                       {row.currency ? ` · ${row.currency}` : ""}
                     </p>
                   </div>
@@ -168,6 +159,6 @@ export default function HistoryPage() {
       </section>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
-    </main>
+    </AppShell>
   );
 }

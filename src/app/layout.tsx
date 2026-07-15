@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { Fraunces, DM_Sans } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { themeInitScript } from "@/components/theme-init";
 import "./globals.css";
 
-const display = Fraunces({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-display",
-});
-
-const body = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-manrope",
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "StatementInsight · Trafforge Hackathon",
+  title: "Finsight · Your money, decoded.",
   description:
-    "AI-powered personal banking statement analyzer — ingest, categorize, insights, cash-flow, chatbot.",
+    "Finsight — AI-powered personal banking statement analyzer with Finn, your money assistant.",
 };
 
 export default function RootLayout({
@@ -25,9 +24,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${display.variable} ${body.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" className={manrope.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className={`${manrope.className} antialiased`}>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

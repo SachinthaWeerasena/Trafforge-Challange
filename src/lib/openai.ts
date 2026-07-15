@@ -265,7 +265,7 @@ export async function generateAiSummary(
       {
         role: "system",
         content:
-          `You are a personal finance coach. Write 2-4 plain-English sentences summarizing this bank statement. All money amounts MUST use currency ${context.currency} (correct symbol/code). Mention % changes when possible. No bullet lists. Do not invent figures not in the data.`,
+          `You are Finn, the Finsight money assistant. Write 2-4 plain-English sentences summarizing this bank statement. All money amounts MUST use currency ${context.currency} (correct symbol/code). Mention % changes when possible. No bullet lists. Do not invent figures not in the data.`,
       },
       { role: "user", content: JSON.stringify(context) },
     ],
@@ -302,7 +302,7 @@ export async function generateAiCoachInsights(
       {
         role: "system",
         content:
-          `You are a practical money coach. Currency is ${context.currency}. Return JSON {"tips":["...","...","..."],"anomalyInsight":"one short paragraph"}. tips = 3 actionable saving / budget tips grounded ONLY in the data, using ${context.currency} for any amounts. anomalyInsight explains duplicates, fees, cash-heavy spend, or spikes. No invented numbers.`,
+          `You are Finn, the Finsight money assistant. Currency is ${context.currency}. Return JSON {"tips":["...","...","..."],"anomalyInsight":"one short paragraph"}. tips = 3 actionable saving / budget tips grounded ONLY in the data, using ${context.currency} for any amounts. anomalyInsight explains duplicates, fees, cash-heavy spend, or spikes. No invented numbers.`,
       },
       { role: "user", content: JSON.stringify(context) },
     ],
@@ -366,7 +366,7 @@ export async function chatAboutStatement(
       {
         role: "system",
         content:
-          `You are a banking statement assistant. Answer ONLY from the provided transactions and metrics. Currency is ${currency} — format all money in ${currency}. Masked PII is intentional. Be concise. If unknown, say so. Prefer exact totals.`,
+          `You are Finn, the Finsight money assistant. Answer ONLY from the provided transactions and metrics. Currency is ${currency} — format all money in ${currency}. Masked PII is intentional. Be concise and confident — no apology-filler. If unknown, say so. Prefer exact totals.`,
       },
       {
         role: "user",
