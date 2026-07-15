@@ -9,6 +9,7 @@ import {
   enrichTransactions,
 } from "@/lib/insights";
 import { extractAccountHint } from "@/lib/privacy";
+import { isPdfPasswordError, readPdfDocument } from "@/lib/pdf-reader";
 import {
   aiCategorizeTransactions,
   createAiMeta,
@@ -50,25 +51,13 @@ export async function POST(req: NextRequest) {
       currency = parsed.currency;
       currencySource = parsed.currencySource;
     } else if (name.endsWith(".pdf") || file.type === "application/pdf") {
+      let pageCount = 0;
       try {
-        const { PDFParse } = await import("pdf-parse");
-        const parser = new PDFParse({
-          data: buffer,
-          ...(pdfPassword ? { password: pdfPassword } : {}),
-        });
-        const textResult = await parser.getText();
-        sourceText = textResult.text ?? "";
-        await parser.destroy?.();
+        const pdf = await readPdfDocument(buffer, pdfPassword);
+        sourceText = pdf.text;
+        pageCount = pdf.pageCount;
       } catch (pdfErr) {
-        const msg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
-        const nameHint = pdfErr instanceof Error ? pdfErr.name : "";
-        const needsPassword =
-          /password/i.test(msg) ||
-          /PasswordException/i.test(nameHint) ||
-          /No password given/i.test(msg) ||
-          /Incorrect password/i.test(msg);
-
-        if (needsPassword) {
+        if (isPdfPasswordError(pdfErr)) {
           return NextResponse.json(
             {
               error: pdfPassword
@@ -79,8 +68,21 @@ export async function POST(req: NextRequest) {
             { status: 401 }
           );
         }
+        const msg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
         return NextResponse.json(
           { error: `Could not read PDF: ${msg}` },
+          { status: 422 }
+        );
+      }
+
+      if (!sourceText.trim()) {
+        return NextResponse.json(
+          {
+            error: pdfPassword
+              ? "PDF unlocked, but no selectable text was found. This file looks scanned/image-based — export a text PDF or CSV from your bank and try again."
+              : "No selectable text found in this PDF. It may be scanned — try a text-based PDF or CSV export.",
+            code: "PDF_NO_TEXT",
+          },
           { status: 422 }
         );
       }
@@ -96,8 +98,8 @@ export async function POST(req: NextRequest) {
       if (!raw.length) {
         return NextResponse.json(
           {
-            error:
-              "Could not extract transactions from PDF. Try CSV, or ensure the PDF has selectable text.",
+            error: `PDF opened (${pageCount || "?"} page${pageCount === 1 ? "" : "s"}, ${sourceText.length} characters) but no transaction rows could be parsed. Try CSV, or a clearer text export from the bank.`,
+            code: "PDF_NO_TXNS",
           },
           { status: 422 }
         );

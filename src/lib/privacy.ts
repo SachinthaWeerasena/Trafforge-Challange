@@ -46,13 +46,11 @@ export function extractAccountHint(text: string): string {
   ];
 
   for (const pattern of patterns) {
-    if (pattern.global) {
-      for (const m of text.matchAll(pattern)) {
-        if (m[1]) candidates.push(m[1]);
-      }
-    } else {
-      const m = text.match(pattern);
-      if (m?.[1]) candidates.push(m[1]);
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    const re = new RegExp(pattern.source, flags);
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m[1]) candidates.push(m[1]);
     }
   }
 

@@ -115,10 +115,6 @@ export default function Home() {
               PDF
             </a>
           </div>
-
-          <p className="foot-inline">
-            Synthetic demo data only · never upload real customer statements
-          </p>
         </div>
       ) : (
         <>

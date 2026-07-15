@@ -315,7 +315,7 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
               />
             </label>
             <button type="button" className="btn-secondary sm" onClick={() => setTxnQuery("")}>
-              Filter
+              Clear
             </button>
           </div>
         </header>

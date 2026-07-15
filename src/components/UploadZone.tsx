@@ -44,7 +44,7 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
         const res = await fetch("/api/analyze", { method: "POST", body: form });
         const data = await res.json();
         if (!res.ok) {
-          if (data.code === "PASSWORD_REQUIRED" || /password/i.test(data.error || "")) {
+          if (data.code === "PASSWORD_REQUIRED") {
             setNeedsPassword(true);
             setSelectedFile(file);
             setTimeout(() => passwordRef.current?.focus(), 50);
@@ -123,7 +123,9 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
             ? "Categorizing, summarizing, and preparing insights"
             : selectedFile
               ? isPdfFile(selectedFile)
-                ? "PDF selected — enter a password if the file is locked, then analyze"
+                ? needsPassword
+                  ? "This PDF is locked — enter the password, then unlock"
+                  : "PDF selected — analyzing…"
                 : "Ready to analyze"
               : "No statement uploaded yet — drop a PDF or CSV to get started"}
         </p>
@@ -163,12 +165,10 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
         )}
       </div>
 
-      {(needsPassword || (selectedFile && isPdfFile(selectedFile))) && (
-        <div className={`password-box ${needsPassword ? "required" : ""}`}>
+      {needsPassword && (
+        <div className="password-box required">
           <label htmlFor="pdf-password">
-            {needsPassword
-              ? "This PDF is password-protected — enter the password"
-              : "PDF password (optional)"}
+            This PDF is password-protected — enter the password
           </label>
           <div className="password-row">
             <input
@@ -187,7 +187,7 @@ export function UploadZone({ onAnalyzed, busy, setBusy }: Props) {
                 }
               }}
             />
-            {needsPassword && selectedFile && (
+            {selectedFile && (
               <button
                 type="button"
                 className="file-btn"
