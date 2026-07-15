@@ -196,17 +196,7 @@ export function Chatbot({ analysis }: Props) {
         <header className="chat-popup-head">
           <div className="chat-popup-identity">
             <span className="chat-avatar" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path
-                  d="M8 10h8M8 14h5"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M21 12a8.5 8.5 0 01-8.5 8.5c-1.4 0-2.7-.3-3.9-.9L3 21l1.5-4.1A8.5 8.5 0 1121 12z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img src="/brand/finsight_icon.svg" alt="" width={40} height={40} />
             </span>
             <div>
               <h2 id={titleId}>Ask Finn</h2>
@@ -248,7 +238,7 @@ export function Chatbot({ analysis }: Props) {
             <div key={`${i}-${m.role}`} className={`chat-bubble-row ${m.role}`}>
               {m.role === "assistant" && (
                 <span className="chat-mini-avatar" aria-hidden>
-                  F
+                  <img src="/brand/finsight_icon.svg" alt="" width={28} height={28} />
                 </span>
               )}
               <div
@@ -263,7 +253,7 @@ export function Chatbot({ analysis }: Props) {
           {busy && (
             <div className="chat-bubble-row assistant">
               <span className="chat-mini-avatar" aria-hidden>
-                F
+                <img src="/brand/finsight_icon.svg" alt="" width={28} height={28} />
               </span>
               <div className="chat-bubble assistant typing" aria-label="Finn is typing">
                 <span className="typing-dot" />

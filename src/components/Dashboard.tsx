@@ -6,6 +6,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -66,6 +68,18 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
   const ccy = analysis.currency || "USD";
   const money = (n: number | null | undefined) => formatMoney(n, ccy);
   const bankName = bankNameFromFile(fileName);
+  const bonus = analysis.bonus;
+  const loan = bonus.loanAffordability ?? {
+    monthlyIncomeAvg: analysis.totalIncome,
+    monthlyExpenseAvg: analysis.totalExpenses,
+    monthlySurplus: analysis.netSavings,
+    suggestedMaxInstallment: 0,
+    estimatedMaxLoan: 0,
+    assumedAprPercent: 12,
+    assumedTermMonths: 36,
+    comfortLevel: "stretched" as const,
+    note: "Re-analyze this statement to refresh the loan affordability estimate.",
+  };
   const [txnQuery, setTxnQuery] = useState("");
   const [cashMode, setCashMode] = useState<"monthly" | "yearly">("monthly");
 
@@ -126,7 +140,17 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
     );
   }, [analysis.transactions, txnQuery]);
 
-  const topCats = analysis.topCategories.slice(0, 4);
+  const pieData = useMemo(
+    () =>
+      analysis.topCategories.slice(0, 6).map((c) => ({
+        name: CATEGORY_LABELS[c.category],
+        value: Math.round(c.total * 100) / 100,
+        percent: c.percentOfExpenses,
+        count: c.count,
+        category: c.category,
+      })),
+    [analysis.topCategories]
+  );
 
   return (
     <div className="dash">
@@ -207,33 +231,63 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
               <p>Share of expenses this period</p>
             </div>
           </header>
-          <ul className="wallet-list">
-            {topCats.map((c) => (
-              <li key={c.category}>
-                <span
-                  className="wallet-flag"
-                  style={{ background: CATEGORY_CHART_COLORS[c.category] }}
-                  aria-hidden
-                >
-                  {CATEGORY_LABELS[c.category].slice(0, 1)}
-                </span>
-                <div className="wallet-meta">
-                  <strong>{CATEGORY_LABELS[c.category]}</strong>
-                  <span>{c.count} transactions</span>
-                </div>
-                <div className="wallet-amounts">
-                  <em className="mono-num">{money(c.total)}</em>
-                  <span>{c.percentOfExpenses.toFixed(0)}% of spend</span>
-                </div>
-                <span className={`status-pill ${c.category === "income" ? "active" : ""}`}>
-                  {c.category === "income" ? "Income" : "Active"}
-                </span>
-              </li>
-            ))}
-            {topCats.length === 0 && (
-              <li className="wallet-empty">No category breakdown yet.</li>
-            )}
-          </ul>
+          {pieData.length === 0 ? (
+            <p className="muted">No category breakdown yet.</p>
+          ) : (
+            <div className="category-pie">
+              <div className="chart-box category-pie-chart" aria-hidden={false}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={58}
+                      outerRadius={88}
+                      paddingAngle={pieData.length > 1 ? 2 : 0}
+                      stroke="var(--surface)"
+                      strokeWidth={2}
+                    >
+                      {pieData.map((d) => (
+                        <Cell
+                          key={d.category}
+                          fill={CATEGORY_CHART_COLORS[d.category]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value, _name, item) => {
+                        const row = item?.payload as (typeof pieData)[0] | undefined;
+                        const amount = money(Number(value));
+                        const pct = row ? `${row.percent.toFixed(0)}%` : "";
+                        return [`${amount} · ${pct}`, row?.name ?? "Category"];
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="cat-legend">
+                {pieData.map((c) => (
+                  <li key={c.category}>
+                    <span
+                      className="swatch"
+                      style={{ background: CATEGORY_CHART_COLORS[c.category] }}
+                      aria-hidden
+                    />
+                    <div className="cat-legend-meta">
+                      <strong>{c.name}</strong>
+                      <span>
+                        {c.count} txn{c.count === 1 ? "" : "s"} · {c.percent.toFixed(0)}%
+                      </span>
+                    </div>
+                    <em className="mono-num">{money(c.value)}</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         <section className="panel-card">
@@ -345,12 +399,12 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
       </div>
 
       {(analysis.aiCoachTips.length > 0 || analysis.bonus.aiAnomalyInsight) && (
-        <section className="panel-card" id="alerts">
+        <section className="panel-card" id="coach">
           <header className="panel-card-head">
             <div>
               <p className="finn-label">Finn noticed</p>
-              <h2>Insights</h2>
-              <p>Coach tips and alerts from this statement</p>
+              <h2>Coach tips</h2>
+              <p>Grounded ideas from this statement</p>
             </div>
           </header>
           {analysis.bonus.aiAnomalyInsight && (
@@ -365,32 +419,124 @@ export function Dashboard({ analysis, fileName, onReset }: Props) {
               ))}
             </ol>
           )}
-          <div className="bonus-grid">
-            <div className="bonus-tile">
-              <h4>Duplicates</h4>
-              <p className="muted">
-                {analysis.bonus.duplicateCharges.length === 0
-                  ? "None detected"
-                  : `${analysis.bonus.duplicateCharges.length} flagged`}
-              </p>
-            </div>
-            <div className="bonus-tile">
-              <h4>Fees</h4>
-              <p className="muted">{analysis.bonus.hiddenFees.length} fee-like items</p>
-            </div>
-            <div className="bonus-tile">
-              <h4>Salary</h4>
-              <p className="muted">{analysis.bonus.salaryConsistency.note}</p>
-            </div>
-            <div className="bonus-tile">
-              <h4>Cash-heavy</h4>
-              <p className="muted">
-                {analysis.bonus.cashHeavy.cashPctOfExpenses}% · {analysis.bonus.cashHeavy.note}
-              </p>
-            </div>
-          </div>
         </section>
       )}
+
+      <section className="panel-card" id="alerts">
+        <header className="panel-card-head">
+          <div>
+            <h2>Insights</h2>
+            <p>Alerts and estimates computed from this statement</p>
+          </div>
+        </header>
+        <div className="bonus-grid bonus-grid-full">
+          <article className="bonus-tile">
+            <h4>Duplicate charge detection</h4>
+            {bonus.duplicateCharges.length === 0 ? (
+              <p className="muted">No near-duplicate charges detected.</p>
+            ) : (
+              <ul>
+                {bonus.duplicateCharges.map((d, i) => (
+                  <li key={i}>
+                    {d.description}: {money(d.amount)} on {d.dates.join(" & ")}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+
+          <article className="bonus-tile">
+            <h4>Hidden bank fees</h4>
+            {bonus.hiddenFees.length === 0 ? (
+              <p className="muted">No fee-like items flagged.</p>
+            ) : (
+              <ul>
+                {bonus.hiddenFees.map((t) => (
+                  <li key={t.id}>
+                    {t.maskedDescription}: {money(t.debit)} · {t.date}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+
+          <article className="bonus-tile">
+            <h4>Failed or returned transactions</h4>
+            {bonus.failedTransactions.length === 0 ? (
+              <p className="muted">No failed/returned transactions flagged.</p>
+            ) : (
+              <ul>
+                {bonus.failedTransactions.map((t) => (
+                  <li key={t.id}>
+                    {t.maskedDescription}: {money(t.debit ?? t.credit)} · {t.date}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+
+          <article className="bonus-tile">
+            <h4>Salary consistency</h4>
+            <p>{bonus.salaryConsistency.note}</p>
+            {bonus.salaryConsistency.amounts.length > 0 && (
+              <p className="muted mono-num">
+                Credits:{" "}
+                {bonus.salaryConsistency.amounts.map((a) => money(a)).join(" · ")}
+              </p>
+            )}
+          </article>
+
+          <article className="bonus-tile">
+            <h4>Cash-heavy behaviour</h4>
+            <p>
+              {bonus.cashHeavy.cashPctOfExpenses}% of expenses · {bonus.cashHeavy.note}
+            </p>
+            {bonus.cashHeavy.flagged && <p className="bonus-flag">Alert flagged</p>}
+          </article>
+
+          <article className="bonus-tile">
+            <h4>Loan affordability estimate</h4>
+            <p>{loan.note}</p>
+            <ul className="loan-metrics">
+              <li>
+                <span>Avg monthly income</span>
+                <em className="mono-num">{money(loan.monthlyIncomeAvg)}</em>
+              </li>
+              <li>
+                <span>Avg monthly expenses</span>
+                <em className="mono-num">{money(loan.monthlyExpenseAvg)}</em>
+              </li>
+              <li>
+                <span>Monthly surplus</span>
+                <em className="mono-num">{money(loan.monthlySurplus)}</em>
+              </li>
+              <li>
+                <span>Suggested max installment</span>
+                <em className="mono-num">{money(loan.suggestedMaxInstallment)}</em>
+              </li>
+              <li>
+                <span>
+                  Est. max loan ({loan.assumedTermMonths} mo @ {loan.assumedAprPercent}% APR)
+                </span>
+                <em className="mono-num">{money(loan.estimatedMaxLoan)}</em>
+              </li>
+              <li>
+                <span>Comfort</span>
+                <em className={`comfort-${loan.comfortLevel}`}>{loan.comfortLevel}</em>
+              </li>
+            </ul>
+          </article>
+
+          <article className="bonus-tile span-2">
+            <h4>Personalised saving suggestions</h4>
+            <ul>
+              {bonus.savingSuggestions.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          </article>
+        </div>
+      </section>
 
       <section className="panel-card" id="transactions">
         <header className="panel-card-head table-head">

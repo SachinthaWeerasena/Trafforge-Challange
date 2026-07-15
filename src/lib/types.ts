@@ -79,6 +79,18 @@ export interface BonusAlerts {
     cashPctOfExpenses: number;
     note: string;
   };
+  /** Hypothetical loan capacity from statement surplus */
+  loanAffordability: {
+    monthlyIncomeAvg: number;
+    monthlyExpenseAvg: number;
+    monthlySurplus: number;
+    suggestedMaxInstallment: number;
+    estimatedMaxLoan: number;
+    assumedAprPercent: number;
+    assumedTermMonths: number;
+    comfortLevel: "comfortable" | "tight" | "stretched";
+    note: string;
+  };
   savingSuggestions: string[];
   /** AI plain-English explanation of anomalies / fees / cash patterns */
   aiAnomalyInsight?: string;

@@ -16,6 +16,13 @@ export const metadata: Metadata = {
   title: "Finsight · Your money, decoded.",
   description:
     "Finsight — AI-powered personal banking statement analyzer with Finn, your money assistant.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/finsight_icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/brand/finsight_icon.svg" }],
+  },
 };
 
 export default function RootLayout({

@@ -29,12 +29,22 @@ export function AppShell({
   return (
     <div className={`app-frame ${navOpen ? "nav-open" : ""}`}>
       <aside className="app-sidebar" aria-label="Primary">
-        <div className="sidebar-brand">
-          <span className="logo-mark" aria-hidden>
-            F
-          </span>
-          <span className="sidebar-brand-name">Finsight</span>
-        </div>
+        <Link href="/" className="sidebar-brand" onClick={() => setNavOpen(false)}>
+          <img
+            className="sidebar-logo sidebar-logo-light"
+            src="/brand/finsight_logo_primary_light.svg"
+            alt="Finsight"
+            width={152}
+            height={40}
+          />
+          <img
+            className="sidebar-logo sidebar-logo-dark"
+            src="/brand/finsight_logo_primary_dark.svg"
+            alt="Finsight"
+            width={152}
+            height={40}
+          />
+        </Link>
 
         <label className="sidebar-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>

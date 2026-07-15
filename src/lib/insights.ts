@@ -97,7 +97,14 @@ export function computeInsights(
   const openingBalance = withBalance[0]?.balance ?? null;
   const closingBalance = withBalance[withBalance.length - 1]?.balance ?? null;
 
-  const bonus = buildBonus(transactions, expenseTx, incomeTx, totalExpenses);
+  const bonus = buildBonus(
+    transactions,
+    expenseTx,
+    incomeTx,
+    totalIncome,
+    totalExpenses,
+    cashFlow.length || 1
+  );
 
   return {
     transactions,
@@ -210,75 +217,152 @@ function buildBonus(
   all: Transaction[],
   expenses: Transaction[],
   income: Transaction[],
-  totalExpenses: number
+  totalIncome: number,
+  totalExpenses: number,
+  monthCount: number
 ): BonusAlerts {
+  const months = Math.max(1, monthCount);
+
   // Duplicate charges: same amount + similar description within 3 days
   const duplicateCharges: BonusAlerts["duplicateCharges"] = [];
+  const dupKeys = new Set<string>();
   for (let i = 0; i < expenses.length; i++) {
     for (let j = i + 1; j < expenses.length; j++) {
       const a = expenses[i];
       const b = expenses[j];
       if ((a.debit ?? 0) !== (b.debit ?? 0) || !a.debit) continue;
-      const sameMerchant =
-        normalizeMerchant(a.description) === normalizeMerchant(b.description);
+      const merchant = normalizeMerchant(a.description);
+      const sameMerchant = merchant === normalizeMerchant(b.description);
       const dayDiff = Math.abs(
         (new Date(a.date).getTime() - new Date(b.date).getTime()) / 86400000
       );
       if (sameMerchant && dayDiff <= 3) {
+        const key = `${merchant}|${a.debit}|${[a.date, b.date].sort().join(",")}`;
+        if (dupKeys.has(key)) continue;
+        dupKeys.add(key);
         duplicateCharges.push({
           description: a.maskedDescription,
           amount: a.debit!,
-          dates: [a.date, b.date],
+          dates: [a.date, b.date].sort(),
         });
       }
     }
   }
 
+  // Hidden bank fees
   const hiddenFees = expenses.filter(
-    (t) => t.category === "fees" || /fee|charge|levy/i.test(t.description)
+    (t) =>
+      t.category === "fees" ||
+      /\b(fee|charge|levy|commission|service\s*charge|maintenance|overdraft)\b/i.test(
+        t.description
+      )
   );
 
+  // Failed / returned transactions
   const failedTransactions = all.filter((t) =>
-    /fail|declined|reversed|nsf|insufficient/i.test(t.description)
+    /\b(fail|failed|declin|reversed?|nsf|insufficient|return(?:ed)?|bounce|unpaid|reject|charge\s*back|cancel(?:led)?|disregard)\b/i.test(
+      t.description
+    )
   );
 
-  const salaryLike = income.filter((t) => /salary|payroll|wage/i.test(t.description));
+  // Salary consistency
+  const salaryLike = income.filter((t) =>
+    /salary|payroll|wage|direct\s*deposit|payslip/i.test(t.description)
+  );
   const salaryAmounts = salaryLike.map((t) => t.credit ?? 0);
-  let salaryNote = "No clear salary pattern detected.";
+  let salaryNote = "No clear salary pattern detected in this period.";
   let detected = false;
   if (salaryAmounts.length >= 2) {
     detected = true;
     const avg = salaryAmounts.reduce((a, b) => a + b, 0) / salaryAmounts.length;
-    const maxDev = Math.max(...salaryAmounts.map((a) => Math.abs(a - avg) / avg));
+    const maxDev = Math.max(...salaryAmounts.map((a) => Math.abs(a - avg) / (avg || 1)));
     salaryNote =
       maxDev <= 0.05
-        ? `Salary looks consistent (~${Math.round(avg)}).`
-        : `Salary varies up to ${(maxDev * 100).toFixed(0)}% — review income stability.`;
+        ? `Salary looks consistent across ${salaryAmounts.length} credits (~avg detected).`
+        : `Salary varies up to ${(maxDev * 100).toFixed(0)}% across ${salaryAmounts.length} credits — review income stability.`;
+  } else if (salaryAmounts.length === 1) {
+    detected = true;
+    salaryNote = "One salary-like credit found — need another cycle to judge consistency.";
   }
 
+  // Cash-heavy behaviour
   const cashTotal = expenses
-    .filter((t) => t.category === "cash_withdrawals")
+    .filter(
+      (t) =>
+        t.category === "cash_withdrawals" ||
+        /\b(atm|cash\s*w\/?d|cash\s*withdraw(?:al)?s?|withdraw(?:al)?s?)\b/i.test(
+          t.description
+        )
+    )
     .reduce((s, t) => s + (t.debit ?? 0), 0);
   const cashPct = totalExpenses > 0 ? (cashTotal / totalExpenses) * 100 : 0;
 
+  // Loan affordability (hypothetical): max installment from surplus & income
+  const monthlyIncomeAvg = totalIncome / months;
+  const monthlyExpenseAvg = totalExpenses / months;
+  const monthlySurplus = monthlyIncomeAvg - monthlyExpenseAvg;
+  const fromIncomeCap = monthlyIncomeAvg * 0.3;
+  const fromSurplusCap = Math.max(0, monthlySurplus * 0.7);
+  const pmt =
+    monthlySurplus > 0
+      ? Math.min(fromIncomeCap, Math.max(fromSurplusCap, monthlySurplus * 0.5))
+      : Math.max(0, monthlyIncomeAvg * 0.15);
+  const suggestedPmt = Math.round(Math.max(0, pmt));
+  const assumedAprPercent = 12;
+  const assumedTermMonths = 36;
+  const monthlyRate = assumedAprPercent / 100 / 12;
+  const estimatedMaxLoan =
+    suggestedPmt > 0 && monthlyRate > 0
+      ? Math.round(
+          (suggestedPmt * (1 - Math.pow(1 + monthlyRate, -assumedTermMonths))) / monthlyRate
+        )
+      : 0;
+
+  let comfortLevel: BonusAlerts["loanAffordability"]["comfortLevel"] = "stretched";
+  if (monthlySurplus > monthlyIncomeAvg * 0.2 && suggestedPmt > 0) comfortLevel = "comfortable";
+  else if (monthlySurplus > 0 && suggestedPmt > 0) comfortLevel = "tight";
+
+  const loanNote =
+    suggestedPmt <= 0
+      ? "Expenses meet or exceed income this period — a new loan installment would stretch affordability."
+      : `Based on this statement, a hypothetical installment up to the suggested max (~${assumedTermMonths} mo @ ${assumedAprPercent}% APR) keeps debt service within a cautious share of income.`;
+
+  // Personalised saving suggestions
   const savingSuggestions: string[] = [];
   if (cashPct > 15) {
     savingSuggestions.push(
-      "High cash usage — consider card/digital payments for clearer budgeting."
+      "High cash usage — prefer card/digital payments so spend is easier to track and cut."
     );
   }
   const dining = expenses
     .filter((t) => t.category === "dining")
     .reduce((s, t) => s + (t.debit ?? 0), 0);
-  if (totalExpenses > 0 && dining / totalExpenses > 0.15) {
+  if (totalExpenses > 0 && dining / totalExpenses > 0.12) {
     savingSuggestions.push(
-      "Dining is a large share of spend — set a weekly dining budget."
+      "Dining is a large share of spend — set a weekly dining cap and track against it."
     );
   }
   const subs = expenses.filter((t) => t.category === "subscriptions");
-  if (subs.length >= 3) {
+  if (subs.length >= 2) {
     savingSuggestions.push(
-      `You have ${subs.length} subscription-like payments — audit unused ones.`
+      `You have ${subs.length} subscription-like payments — cancel unused ones and reclaim that monthly amount.`
+    );
+  }
+  if (hiddenFees.length > 0) {
+    savingSuggestions.push(
+      `Bank fee-like items appear ${hiddenFees.length}× — ask your bank about fee-free options or package changes.`
+    );
+  }
+  if (monthlySurplus > 0) {
+    const autoSave = Math.round(monthlySurplus * 0.2);
+    if (autoSave > 0) {
+      savingSuggestions.push(
+        `Automate a transfer of about 20% of monthly surplus on payday to lock in savings.`
+      );
+    }
+  } else {
+    savingSuggestions.push(
+      "Start by freezing one discretionary category for 30 days and redirect that amount to savings."
     );
   }
   if (!savingSuggestions.length) {
@@ -288,19 +372,30 @@ function buildBonus(
   }
 
   return {
-    duplicateCharges: duplicateCharges.slice(0, 5),
-    hiddenFees: hiddenFees.slice(0, 8),
-    failedTransactions: failedTransactions.slice(0, 5),
+    duplicateCharges: duplicateCharges.slice(0, 8),
+    hiddenFees: hiddenFees.slice(0, 10),
+    failedTransactions: failedTransactions.slice(0, 8),
     salaryConsistency: { detected, amounts: salaryAmounts, note: salaryNote },
     cashHeavy: {
       flagged: cashPct > 20,
       cashPctOfExpenses: Math.round(cashPct * 10) / 10,
       note:
         cashPct > 20
-          ? "Cash-heavy behavior detected."
-          : "Cash withdrawals are within a moderate range.",
+          ? "Cash-heavy behaviour flagged — a large share of expenses left via cash/ATM."
+          : "Cash withdrawals are within a moderate range of expenses.",
     },
-    savingSuggestions,
+    loanAffordability: {
+      monthlyIncomeAvg: Math.round(monthlyIncomeAvg * 100) / 100,
+      monthlyExpenseAvg: Math.round(monthlyExpenseAvg * 100) / 100,
+      monthlySurplus: Math.round(monthlySurplus * 100) / 100,
+      suggestedMaxInstallment: suggestedPmt,
+      estimatedMaxLoan,
+      assumedAprPercent,
+      assumedTermMonths,
+      comfortLevel,
+      note: loanNote,
+    },
+    savingSuggestions: savingSuggestions.slice(0, 5),
   };
 }
 
